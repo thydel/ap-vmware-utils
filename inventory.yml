@@ -1,0 +1,89 @@
+#!/usr/bin/env ansible-playbook
+---
+
+- hosts: localhost
+  gather_facts: False
+
+  vars_files:
+
+    - vars/ext/legacy/oxa_vcenter.yml
+    - vars/ext/secret/passwords.yml
+
+  vars:
+
+    inventory_name: oxa
+
+  tasks:
+
+    - debug:
+        var: vcenter_password
+        verbosity: 2
+      tags: show
+
+    - set_fact: { ansible_home: "{{ lookup('env', 'ANSIBLE_HOME') }}" }
+    - set_fact:
+        vmware_inventory_base: "{{ ansible_home ~ '/contrib/inventory/vmware_inventory' }}"
+        inventory_base: "{{ inventory_dir ~ '/' ~ inventory_name }}"
+    - set_fact: { inventory_ini: "{{ inventory_base ~ '.ini' }}" }
+
+    - file:
+        src: "{{ vmware_inventory_base ~ '.py' }}"
+        path: "{{ inventory_base ~ '.py' }}"
+        state: link
+
+    - stat: { path: "{{ inventory_ini }}" }
+      register: st
+      
+    - copy:
+        src: "{{ vmware_inventory_base ~ '.ini' }}"
+        dest: "{{ inventory_ini }}"
+        mode: 0644
+      when: not st.stat.exists
+
+    - set_fact: { inventory_rel: "{{ inventory_dir | basename ~ '/' ~ inventory_name }}" }
+    - lineinfile:
+        path: .gitignore
+        line: '{{ item }}'
+      with_items:
+        - "{{ inventory_rel ~ '.py' }}"
+        - "{{ inventory_rel ~ '.ini' }}"
+
+    - set_fact:
+        conf:
+          server: '{{ vcenter_hostname }}'
+          username: '{{ vcenter_username }}'
+          validate_certs: False
+          cache_path: .cache/ansible
+
+    - ini_file:
+        path: '{{ inventory_ini }}'
+        section: vmware
+        option: '{{ item.key }}'
+        value:  '{{ item.value }}'
+        backup: True
+      with_dict: '{{ conf }}'
+      loop_control: { label: '{{ item.key }}' }
+
+    - set_fact:
+        meta_conf:
+          password: vcenter_password
+          alias_pattern: guest.hostname
+          host_pattern: "guest.hostname + '.oxa'"
+
+    - lineinfile:
+        dest: '{{ inventory_ini }}'
+        regexp: (?i)^\s*#\s*({{ item.key }}.*)
+        line: \1
+        backrefs: yes
+      with_dict: '{{ meta_conf }}'
+      loop_control: { label: '{{ item.key }}' }
+      when: False
+
+    - ini_file:
+        path: '{{ inventory_ini }}'
+        section: vmware
+        option: '{{ item.key }}'
+        value: "{{ '{{ ' ~ item.value ~ ' }}' }}"
+        backup: True
+      with_dict: '{{ meta_conf }}'
+      loop_control: { label: '{{ item.key }}' }

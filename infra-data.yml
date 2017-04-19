@@ -1,0 +1,52 @@
+#!/usr/bin/env ansible-playbook
+---
+
+- hosts: localhost
+  gather_facts: False
+  tags: once
+
+  vars: &vars
+
+    default_version: v0.23.2
+    data_dir:        ext/data
+    data_version:    '{{ version | default(default_version) }}'
+    data:            '{{ data_dir}}/{{ data_version }}/templates.out'
+    legacy:          '{{ data_dir}}/{{ data_version }}/vars/legacy'
+    local:           '{{ ansible_hostname }}'
+    user:            '{{ ansible_user_id }}'
+
+  tasks:
+
+    - git:
+        repo: git@github.com:Epiconcept-Paris/infra-data.git
+        version: '{{ data_version }}'
+        dest: '{{ data_dir}}/{{ data_version }}'
+        key_file: ~/.ssh/id_epiconcept
+      when: data_version != 'debug'
+      tags: git
+      name: get infra-data
+
+- hosts: localhost
+  gather_facts: True
+  tags: main
+
+  vars: *vars
+
+  tasks:
+
+    - lineinfile:
+        path: .gitignore
+        line: '{{ item }}'
+      with_items: [ vars/ext ]
+
+    - file:
+        path: '{{ playbook_dir}}/vars/ext/legacy'
+        state: directory
+
+    - copy:
+        src: '{{ legacy }}/{{ item }}.yml'
+        dest: '{{ playbook_dir}}/vars/ext/legacy/{{ item }}.yml'
+        mode: 0444
+      with_items:
+        - oxa_vcenter
+      name: legacy

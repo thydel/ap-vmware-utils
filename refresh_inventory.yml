@@ -1,0 +1,17 @@
+#!/usr/bin/env ansible-playbook
+---
+
+- hosts: localhost
+  gather_facts: False
+
+  vars_files:
+
+    - vars/ext/secret/passwords.yml
+
+  environment:
+    VMWARE_PASSWORD: '{{ vcenter_password }}'
+
+  tasks:
+
+    # - meta: refresh_inventory
+    - command: ansible local -m meta -a noop

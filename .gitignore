@@ -11,3 +11,6 @@ ext
 ansible.cfg
 ssh-config
 vault-pass.py
+vars/ext
+inventory/oxa.py
+inventory/oxa.ini
