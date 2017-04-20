@@ -20,6 +20,11 @@
         verbosity: 2
       tags: show
 
+    - debug:
+        msg: "{{ lookup('passwordstore', 'oxa/vcenter') }}"
+        verbosity: 2
+      tags: show
+
     - set_fact: { ansible_home: "{{ lookup('env', 'ANSIBLE_HOME') }}" }
     - set_fact:
         vmware_inventory_base: "{{ ansible_home ~ '/contrib/inventory/vmware_inventory' }}"
@@ -66,9 +71,10 @@
 
     - set_fact:
         meta_conf:
-          password: vcenter_password
           alias_pattern: guest.hostname
           host_pattern: "guest.hostname + '.oxa'"
+        meta_conf_hide:
+          password: vcenter_password
 
     - lineinfile:
         dest: '{{ inventory_ini }}'
